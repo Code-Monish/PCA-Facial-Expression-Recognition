@@ -1,13 +1,27 @@
 import cv2
 
-face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
-video_capture = cv2.VideoCapture(0)
+# Initialize the camera
+camera = cv2.VideoCapture(0)  # '0' is usually the built-in camera
+
+# Check if the camera opened successfully
+if not camera.isOpened():
+    print("Error: Could not open the camera.")
+    exit()
+
+# Read and display video frames
 while True:
-    ret, frame = video_capture.read()
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
-    for (x, y, w, h) in faces:
-        cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
-    cv2.imshow('Video', frame)
+    ret, frame = camera.read()  # Read a frame
+    if not ret:
+        print("Error: Failed to grab the frame.")
+        break
+
+    # Display the frame
+    cv2.imshow("Camera", frame)
+
+    # Break the loop if 'q' is pressed
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
+
+# Release the camera and close all OpenCV windows
+camera.release()
+cv2.destroyAllWindows()
