@@ -1,73 +1,48 @@
 import cv2
-import numpy as np
-from sklearn.decomposition import PCA
 
-# Load the Haar cascade classifier for face detection
+# Load the pre-trained Haar Cascade for face detection
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 
-# Open the default camera
-cam = cv2.VideoCapture(0)
+# Initialize the camera
+camera = cv2.VideoCapture(0)  # '0' is usually the built-in camera
 
-# Get the default frame width and height
-frame_width = int(cam.get(cv2.CAP_PROP_FRAME_WIDTH))
-frame_height = int(cam.get(cv2.CAP_PROP_FRAME_HEIGHT))
+# Check if the camera opened successfully
+if not camera.isOpened():
+    print("Error: Could not open the camera.")
+    exit()
 
-# Define the codec and create VideoWriter object
-fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-out = cv2.VideoWriter('output.mp4', fourcc, 20.0, (frame_width, frame_height))
-
-# Initialize a list to collect face images
-face_images = []
-
+# Read and display video frames
 while True:
-    ret, frame = cam.read()
+    ret, frame = camera.read()  # Read a frame
     if not ret:
+        print("Error: Failed to grab the frame.")
         break
 
-    # Convert the frame to grayscale for face detection
+    # Convert the frame to grayscale (needed for Haar cascade)
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-    # Detect faces in the frame
-    faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+    # Detect faces
+    faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
 
+    # Draw rectangles around detected faces and get face regions as matrices
     for (x, y, w, h) in faces:
-        # Draw a rectangle around the detected face
+        # Draw a rectangle around the face
         cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
 
-        # Extract the face region and resize it to a fixed size (e.g., 100x100)
-        face = gray[y:y + h, x:x + w]
-        face = cv2.resize(face, (100, 100))
+        # Get the face region as a matrix
+        face_region = frame[y:y + h, x:x + w]
 
-        # Flatten the face image and add it to the list
-        face_images.append(face.flatten())
+        # Print the matrix of the detected face
+        print("Face Region Matrix:")
+        print(face_region)
 
-    # Write the frame to the output file
-    out.write(frame)
+    # Display the frame with detected faces
+    cv2.imshow("Camera", frame)
 
-    # Display the captured frame with rectangles around faces
-    cv2.imshow('Camera', frame)
-
-    # Press 'q' to exit the loop
-    if cv2.waitKey(1) == ord('q'):
+    # Break the loop if 'q' is pressed
+    if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
-# Release the capture and writer objects
-cam.release()
-out.release()
+# Release the camera and close all OpenCV windows
+camera.release()
 cv2.destroyAllWindows()
-
-# Step 4: Apply PCA on Collected Face Images
-if face_images:
-    # Convert the list of face images to a NumPy array
-    face_images = np.array(face_images)
-
-    # Apply PCA to reduce the dimensionality of the face images
-    pca = PCA(n_components=50)  # Adjust the number of components as needed
-    principal_components = pca.fit_transform(face_images)
-
-    # Print the explained variance ratio to see how much information is retained
-    print("Explained Variance Ratio:", pca.explained_variance_ratio_)
-
-    # You can use the principal components for face recognition or further analysis
-else:
-    print("No faces were detected for PCA.")
