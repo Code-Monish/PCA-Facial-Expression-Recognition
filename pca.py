@@ -1,19 +1,16 @@
 import cv2
-
+import numpy as np
 # Load the pre-trained Haar Cascade for face detection
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+camera = cv2.VideoCapture(0)
 
-# Initialize the camera
-camera = cv2.VideoCapture(0)  # '0' is usually the built-in camera
-
-# Check if the camera opened successfully
 if not camera.isOpened():
     print("Error: Could not open the camera.")
     exit()
 
 # Read and display video frames
 while True:
-    ret, frame = camera.read()  # Read a frame
+    ret, frame = camera.read()
     if not ret:
         print("Error: Failed to grab the frame.")
         break
@@ -42,6 +39,38 @@ while True:
     # Break the loop if 'q' is pressed
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
+
+def extract_important_features(face_region):
+    # Step 1: Convert the image to grayscale
+    gray_face = cv2.cvtColor(face_region, cv2.COLOR_BGR2GRAY)
+    cv2.imshow("prit", gray_face)
+    # Step 2: Apply edge detection to highlight key features
+    edges = cv2.Canny(gray_face, 100, 200)
+    
+    # Step 3: Retain only the edges in the grayscale image
+    # Create a mask to highlight important features
+    reduced_matrix = np.where(edges > 0, gray_face, 0)
+    
+    return reduced_matrix
+
+reduced_face_matrix = extract_important_features(face_region)
+
+# Display the reduced matrix
+print("Reduced Face Matrix")
+print(reduced_face_matrix)
+cv2.waitKey(0)
+
+# Assuming 'reduced_face_matrix' is your 2D matrix from the reduction step
+
+# Normalize the values to range from 0 to 255 if they aren't already
+normalized_matrix = cv2.normalize(reduced_face_matrix, None, 50, 100, cv2.NORM_MINMAX)
+
+# Convert the normalized matrix to an 8-bit unsigned integer type
+image = normalized_matrix.astype(np.uint8)
+
+# Display the image
+cv2.imshow("Extracted Face Image", image)
+cv2.waitKey(0)
 
 # Release the camera and close all OpenCV windows
 camera.release()
