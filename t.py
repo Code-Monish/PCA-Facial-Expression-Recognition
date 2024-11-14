@@ -1,20 +1,18 @@
 import cv2
 import numpy as np
 
+face_region = []
 # Load the pre-trained Haar Cascade for face detection
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+camera = cv2.VideoCapture(0)
 
-# Initialize the camera
-camera = cv2.VideoCapture(0)  # '0' is usually the built-in camera
-
-# Check if the camera opened successfully
 if not camera.isOpened():
     print("Error: Could not open the camera.")
     exit()
 
 # Read and display video frames
 while True:
-    ret, frame = camera.read()  # Read a frame
+    ret, frame = camera.read()
     if not ret:
         print("Error: Failed to grab the frame.")
         break
@@ -33,9 +31,11 @@ while True:
         # Get the face region as a matrix
         face_region = frame[y:y + h, x:x + w]
 
-        # Print the matrix of the detected face
-        print("Face Region Matrix:")
-        print(face_region)
+        # Ensure face_region is a 3D array (it should already be)
+        #if len(face_region.shape) == 3:
+            #print("Face Region is a 3D array with shape:", face_region.shape)
+        #else:
+            #print("Face Region is not a 3D array.")
 
     # Display the frame with detected faces
     cv2.imshow("Camera", frame)
@@ -44,37 +44,51 @@ while True:
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
+
+
 def extract_important_features(face_region):
+    # Load the Haar cascades for eyes, nose, and mouth
+    eye_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_eye.xml')
+    nose_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_mcs_nose.xml')
+    mouth_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_mcs_mouth.xml')
+
     # Step 1: Convert the image to grayscale
     gray_face = cv2.cvtColor(face_region, cv2.COLOR_BGR2GRAY)
-    
-    # Step 2: Apply edge detection to highlight key features
-    edges = cv2.Canny(gray_face, 100, 200)
-    
-    # Step 3: Retain only the edges in the grayscale image
-    # Create a mask to highlight important features
-    reduced_matrix = np.where(edges > 0, gray_face, 0)
-    
-    return reduced_matrix
 
-reduced_face_matrix = extract_important_features(face_region)
+    # Step 2: Detect eyes
+    eyes = eye_cascade.detectMultiScale(gray_face, scaleFactor=1.1, minNeighbors=5)
+    if len(eyes) > 0:
+        print("Eyes detected.")
+    else:
+        print("No eyes detected.")
 
-# Display the reduced matrix
-print("Reduced Face Matrix")
-print(reduced_face_matrix)
-cv2.waitKey(0)
+    # Step 3: Detect nose
+    noses = nose_cascade.detectMultiScale(gray_face, scaleFactor=1.1, minNeighbors=5)
+    if len(noses) > 0:
+        print("Nose detected.")
+    else:
+        print("No nose detected.")
 
-# Assuming 'reduced_face_matrix' is your 2D matrix from the reduction step
+    # Step 4: Detect mouth
+    mouths = mouth_cascade.detectMultiScale(gray_face, scaleFactor=1.1, minNeighbors=5)
+    if len(mouths) > 0:
+        print("Mouth detected.")
+    else:
+        print("No mouth detected.")
 
-# Normalize the values to range from 0 to 255 if they aren't already
-normalized_matrix = cv2.normalize(reduced_face_matrix, None, 0, 255, cv2.NORM_MINMAX)
+    # Note: The function does not return anything; it only prints detection results.
 
-# Convert the normalized matrix to an 8-bit unsigned integer type
-image = normalized_matrix.astype(np.uint8)
+# The rest of your code remains unchanged.
 
-# Display the image
-cv2.imshow("Extracted Face Image", image)
-cv2.waitKey(0)
+# Use the modified function to get the reduced face matrix
+if face_region.size > 0:  # Check if face_region is not empty
+    extract_important_features(face_region)
+    #print("Reduced image shape:", reduced_face_matrix.shape)
+    #print("Face region shape:", face_region.shape)
+
+    # Display the blended image with emphasized features
+    cv2.imshow("Reduced Face Matrix with Features", reduced_face_matrix)
+    cv2.waitKey(0)
 
 # Release the camera and close all OpenCV windows
 camera.release()

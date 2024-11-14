@@ -1,5 +1,7 @@
 import cv2
 import numpy as np
+
+face_region = []
 # Load the pre-trained Haar Cascade for face detection
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 camera = cv2.VideoCapture(0)
@@ -31,7 +33,7 @@ while True:
 
         # Print the matrix of the detected face
         print("Face Region Matrix:")
-        print(face_region)
+        #print(face_region)
 
     # Display the frame with detected faces
     cv2.imshow("Camera", frame)
@@ -43,33 +45,24 @@ while True:
 def extract_important_features(face_region):
     # Step 1: Convert the image to grayscale
     gray_face = cv2.cvtColor(face_region, cv2.COLOR_BGR2GRAY)
-    cv2.imshow("prit", gray_face)
+
     # Step 2: Apply edge detection to highlight key features
     edges = cv2.Canny(gray_face, 100, 200)
-    
-    # Step 3: Retain only the edges in the grayscale image
-    # Create a mask to highlight important features
-    reduced_matrix = np.where(edges > 0, gray_face, 0)
-    
-    return reduced_matrix
 
+    # Step 3: Blend the grayscale image with the edges to emphasize key features
+    # Use a weighted combination of the original grayscale and the edges
+    # Adjust the weights to balance between the original details and the edges
+    blended_image = cv2.addWeighted(gray_face, 0.7, edges, 1, 0)
+
+    return blended_image
+
+# Use the modified function to get the reduced face matrix
 reduced_face_matrix = extract_important_features(face_region)
+print("reduced image", reduced_face_matrix)
+print(face_region)
 
-# Display the reduced matrix
-print("Reduced Face Matrix")
-print(reduced_face_matrix)
-cv2.waitKey(0)
-
-# Assuming 'reduced_face_matrix' is your 2D matrix from the reduction step
-
-# Normalize the values to range from 0 to 255 if they aren't already
-normalized_matrix = cv2.normalize(reduced_face_matrix, None, 50, 100, cv2.NORM_MINMAX)
-
-# Convert the normalized matrix to an 8-bit unsigned integer type
-image = normalized_matrix.astype(np.uint8)
-
-# Display the image
-cv2.imshow("Extracted Face Image", image)
+# Display the blended image with emphasized features
+cv2.imshow("Reduced Face Matrix with Features", reduced_face_matrix)
 cv2.waitKey(0)
 
 # Release the camera and close all OpenCV windows
