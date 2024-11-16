@@ -33,12 +33,10 @@ while True:
 
         # Print the matrix of the detected face
         print("Face Region Matrix:")
-        #print(face_region)
+        print(face_region)
 
     # Display the frame with detected faces
     cv2.imshow("Camera", frame)
-
-    # Break the loop if 'q' is pressed
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
@@ -58,8 +56,7 @@ def extract_important_features(face_region):
 
 # Use the modified function to get the reduced face matrix
 reduced_face_matrix = extract_important_features(face_region)
-print("reduced image", reduced_face_matrix)
-print(face_region)
+print("reduced image\n", reduced_face_matrix)
 
 # Display the blended image with emphasized features
 cv2.imshow("Reduced Face Matrix with Features", reduced_face_matrix)
