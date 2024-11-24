@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # import cv2
 # import numpy as np
 # import time
@@ -69,5 +68,3 @@ while True:
     
 cap.release()
 cv2.destroyAllWindows()
-=======
->>>>>>> e44c27c (Progress)
