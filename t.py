@@ -3,11 +3,10 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import mediapipe as mp
-from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
 from sklearn.svm import SVC
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
 
 class EmotionFeatureExtractor:
     def __init__(self):
@@ -23,105 +22,116 @@ class EmotionFeatureExtractor:
 
         landmarks = results.multi_face_landmarks[0].landmark
 
-        mouth_left = np.array([landmarks[11].x, landmarks[11].y])
-        mouth_right = np.array([landmarks[12].x, landmarks[12].y])
-        mouth_center = (mouth_left + mouth_right) / 2
+        try:
+            # Carefully select landmark indices
+            # These indices might need adjustment based on your specific Mediapipe version
+            a1 = np.array([landmarks[105].x, landmarks[105].y])  # Right eyebrow
+            b1 = np.array([landmarks[334].x, landmarks[334].y])  # Left eyebrow
 
-        left_eyebrow_top = np.array([landmarks[105].x, landmarks[105].y])
-        right_eyebrow_top = np.array([landmarks[334].x, landmarks[334].y])
-        eyebrow_height = np.mean([left_eyebrow_top[1], right_eyebrow_top[1]])
+            # Right eye landmarks
+            c1 = np.array([landmarks[33].x, landmarks[33].y])    # Right end
+            c2 = np.array([landmarks[133].x, landmarks[133].y])  # Left end
+            c3 = np.array([landmarks[159].x, landmarks[159].y])  # Top
+            c4 = np.array([landmarks[145].x, landmarks[145].y])  # Bottom
+            
+            # Left eye landmarks
+            d1 = np.array([landmarks[362].x, landmarks[362].y])  # Right end
+            d2 = np.array([landmarks[263].x, landmarks[263].y])  # Left end
+            d3 = np.array([landmarks[386].x, landmarks[386].y])  # Top
+            d4 = np.array([landmarks[374].x, landmarks[374].y])  # Bottom
 
-        left_eye_top = np.array([landmarks[159].x, landmarks[159].y])
-        left_eye_bottom = np.array([landmarks[145].x, landmarks[145].y])
-        eye_openness = np.linalg.norm(left_eye_top - left_eye_bottom)
+            # Lips landmarks
+            f1 = np.array([landmarks[78].x, landmarks[78].y])    # Right end
+            f2 = np.array([landmarks[308].x, landmarks[308].y])  # Left end
+            f3 = np.array([landmarks[13].x, landmarks[13].y])    # Top
+            f4 = np.array([landmarks[14].x, landmarks[14].y])    # Bottom
+            f5 = np.array([(f1[0] + f2[0])/2, (f1[1] + f2[1])/2])  # Lip center
 
-        mouth_width = np.linalg.norm(mouth_left - mouth_right)
+            # Calculate dimensions
+            eye_height = (np.linalg.norm(c4 - c3) + np.linalg.norm(d4 - d3)) / 2
+            eye_width = (np.linalg.norm(c2 - c1) + np.linalg.norm(d2 - d1)) / 2
+            mouth_height = np.linalg.norm(f4 - f3)
+            mouth_width = np.linalg.norm(f2 - f1)
+            
+            # Estimate eye center (average of top and bottom points)
+            c5 = np.array([(c3[0] + c4[0])/2, (c3[1] + c4[1])/2])
+            d5 = np.array([(d3[0] + d4[0])/2, (d3[1] + d4[1])/2])
 
-        def calculate_mouth_curvature(left, center, right):
-            vec1 = left - center
-            vec2 = right - center
-            return np.degrees(np.arccos(np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2))))
+            eyebrow_to_eye_center = (np.linalg.norm(c5 - a1) + np.linalg.norm(d5 - b1)) / 2
+            eye_center_to_mouth_center_height = (np.linalg.norm(f5 - c5) + np.linalg.norm(f5 - d5)) / 2
 
-        mouth_curvature = calculate_mouth_curvature(mouth_left, mouth_center, mouth_right)
+            features = [
+                eye_height, eye_width, mouth_height, mouth_width,
+                eyebrow_to_eye_center, eye_center_to_mouth_center_height
+            ]
 
-        nose_left = np.array([landmarks[131].x, landmarks[131].y])
-        nose_right = np.array([landmarks[359].x, landmarks[359].y])
-        nose_width = np.linalg.norm(nose_left - nose_right)
+            return features
 
-        return [
-            mouth_center[0], mouth_center[1], eyebrow_height, eye_openness,
-            mouth_width, mouth_curvature, nose_width
-        ]
+        except Exception as e:
+            print(f"Feature extraction error: {e}")
+            return None
 
-class EmotionDetector:
-    def __init__(self, base_path):
-        self.base_path = base_path
-        self.feature_extractor = EmotionFeatureExtractor()
-        self.classifier = SVC(kernel='linear')
+def load_and_process_dataset(base_path):
+    feature_extractor = EmotionFeatureExtractor()
+    features_list = []
+    labels = []
 
-    def load_dataset(self):
-        happy_path = os.path.join(self.base_path, 'test/happy')
-        sad_path = os.path.join(self.base_path, 'test/sad')
-
-        features_list = []
-        labels = []
-
-        for filename in os.listdir(happy_path):
+    for emotion, label in [('happy', 1), ('sad', 0)]:
+        path = os.path.join(base_path, 'test', emotion)
+        for filename in os.listdir(path):
             if filename.endswith(('.jpg', '.jpeg', '.png')):
-                img_path = os.path.join(happy_path, filename)
+                img_path = os.path.join(path, filename)
                 img = cv2.imread(img_path)
                 if img is not None:
-                    features = self.feature_extractor.calculate_emotion_features(img)
+                    features = feature_extractor.calculate_emotion_features(img)
                     if features is not None:
                         features_list.append(features)
-                        labels.append(1)
+                        labels.append(label)
 
-        for filename in os.listdir(sad_path):
-            if filename.endswith(('.jpg', '.jpeg', '.png')):
-                img_path = os.path.join(sad_path, filename)
-                img = cv2.imread(img_path)
-                if img is not None:
-                    features = self.feature_extractor.calculate_emotion_features(img)
-                    if features is not None:
-                        features_list.append(features)
-                        labels.append(0)
+    return np.array(features_list), np.array(labels)
 
-        return np.array(features_list), np.array(labels)
-
-    def train_classifier(self):
-        features, labels = self.load_dataset()
-        X_train, X_test, y_train, y_test = train_test_split(features, labels, test_size=0.2, random_state=42)
-        self.classifier.fit(X_train, y_train)
-        y_pred = self.classifier.predict(X_test)
-        print(f"Accuracy: {accuracy_score(y_test, y_pred)}")
-
-    def detect_emotion(self, frame):
-        features = self.feature_extractor.calculate_emotion_features(frame)
-        if features is not None:
-            prediction = self.classifier.predict([features])
-            return "Happy" if prediction == 1 else "Sad"
-        return "No face detected"
+def emotion_classification(base_path):
+    # Load features
+    features, labels = load_and_process_dataset(base_path)
+    
+    # Standardize features
+    scaler = StandardScaler()
+    features_scaled = scaler.fit_transform(features)
+    
+    # Apply PCA
+    pca = PCA(n_components=2)
+    features_pca = pca.fit_transform(features_scaled)
+    
+    # Split data
+    X_train, X_test, y_train, y_test = train_test_split(features_pca, labels, test_size=0.2, random_state=42)
+    
+    # Train SVM
+    svm = SVC(kernel='rbf')
+    svm.fit(X_train, y_train)
+    
+    # Evaluate
+    train_accuracy = svm.score(X_train, y_train)
+    test_accuracy = svm.score(X_test, y_test)
+    
+    # Visualization
+    plt.figure(figsize=(10, 8))
+    plt.scatter(features_pca[labels == 1, 0], features_pca[labels == 1, 1], 
+                color='blue', label='Happy')
+    plt.scatter(features_pca[labels == 0, 0], features_pca[labels == 0, 1], 
+                color='red', label='Sad')
+    plt.xlabel('First Principal Component')
+    plt.ylabel('Second Principal Component')
+    plt.title('Emotion Classification after PCA')
+    plt.legend()
+    
+    print(f"Train Accuracy: {train_accuracy:.2f}")
+    print(f"Test Accuracy: {test_accuracy:.2f}")
+    
+    plt.show()
 
 def main():
     base_path = 'Emotions Dataset'
-    detector = EmotionDetector(base_path)
-    detector.train_classifier()
-
-    cap = cv2.VideoCapture(0)
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            break
-
-        emotion = detector.detect_emotion(frame)
-        cv2.putText(frame, emotion, (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
-        cv2.imshow('Emotion Detector', frame)
-
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
-    cap.release()
-    cv2.destroyAllWindows()
+    emotion_classification(base_path)
 
 if __name__ == "__main__":
     main()
